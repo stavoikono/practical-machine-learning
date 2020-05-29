@@ -1,0 +1,111 @@
+---
+title: "Practical Machine Learning Week 4 Project"
+author: "Stavros Oikonomou"
+date: "29/5/2020"
+output: html_document
+---
+
+### Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement ??? a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+### Data
+
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
+
+
+#### Loading the libraries
+```{r,warning=FALSE,message=FALSE}
+library(caret)
+```
+
+#### downloading the datasets
+```{r}
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", destfile="./pml-training.csv")
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", destfile="./pml-testing.csv")
+```
+
+#### Loading the datasets
+```{r}
+train <- read.csv("pml-training.csv", na.strings = c("NA","","#DIV/0!"))
+test <- read.csv("pml-testing.csv", na.strings = c("NA","","#DIV/0!"))
+```
+
+### Data Preprocessing
+
+#### Removing the columns with NA's
+```{r}
+train <- train[,colSums(is.na(train)) == 0]
+test <- test[,colSums(is.na(test)) == 0]
+```
+
+#### Removing near to zero variance columns
+```{r}
+var <- nearZeroVar(train)
+train <- train[,-var]
+test <- test[,-var]
+```
+```{r}
+dim(train)
+```
+```{r}
+dim(test)
+```
+
+
+#### Removing the non-predictors from the training set. This columns do not help us at predictions
+```{r}
+train<- train[,-c(1:7)]
+test <- test[,-c(1:7)]
+```
+
+#### Splitting the train set and create a training set and a validation set
+```{r}
+inTrain <- createDataPartition(train$classe, p = 0.6, list = FALSE)
+training<- train[inTrain,]
+validation<- train[-inTrain,]
+```
+```{r}
+dim(training)
+```
+```{r}
+dim(validation)
+```
+
+### Decision Tree Model
+```{r}
+dt_model <- train(classe~., method="rpart",data=training)
+dt_pred_valid <- predict(dt_model,validation)
+confusionMatrix(dt_pred_valid,validation$classe)
+```
+
+The prediction accuracy for the decision tree model is almost 54% . This is a pretty bad prediction so we gonna seek for other model.
+
+### Random Forest
+```{r}
+rf_model <- train(classe ~., method='rf', data=training, ntree=20)
+rf_pred_valid <- predict(rf_model, validation)
+rf_cm <- confusionMatrix(rf_pred_valid,validation$classe)
+rf_cm
+```
+
+Plot confusion matrix
+```{r}
+plot(rf_cm$table, col=rf_cm$byClass, main="Random Forest Accuracy")
+```
+
+### Conclusion
+The prediction accuracy for the Random Forest model is almost 99%. This is a very good model so we gonna use it for the test set prediction.
+
+### Course Project Prediction Quiz
+```{r}
+test_pred <- predict(rf_model,test)
+test_pred
+```
